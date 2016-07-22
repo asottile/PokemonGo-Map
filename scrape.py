@@ -358,10 +358,13 @@ def generate_location_steps2(num_steps):
         yield x, y
 
 
+# the height of the unit equilateral triangle
+UNIT_TRIANGLE_HEIGHT = (3 ** 0.5) / 2.0
+
+
 def generate_location_steps3(num_steps):
-    # the height of the unit equilateral triangle: 0.866 ~= (3 ** 0.5) / 2.0
     for x, y in generate_location_steps2(num_steps):
-        yield x + (y / 2.0), y * 0.886
+        yield x + (y / 2.0), y * UNIT_TRIANGLE_HEIGHT
 
 
 def generate_location_steps4(lat, lng, num_steps):
