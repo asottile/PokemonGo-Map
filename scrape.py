@@ -328,48 +328,52 @@ def insert_data(db, data):
     )
 
 
-def hex_transform(x, y, r, initial_location):
-    lat, lng = initial_location
-    return (x + y / 2) * r[0] + lat, (0.886 * y) * r[1] + lng
-
-
-M_PER_DEG = 111111.
-
-
-def generate_location_steps(initial_location, num_steps):
-    lat, lng = initial_location
-    x, y, m = 0., 0., 150
-    # Conversion of radius from meters to deg
-    r = (
-        m / M_PER_DEG,
-        m / M_PER_DEG / math.cos(lat * 0.0174533)
-    )
-    yield hex_transform(x, y, r, initial_location)
+def generate_location_steps2(num_steps):
+    x, y = 0, 0
+    yield x, y
     for n in range(1, num_steps):
         n += 1
         for i in range(1, n):
             x += 1
-            yield hex_transform(x, y, r, initial_location)
+            yield x, y
         for i in range(1, n - 1):
             y += 1
-            yield hex_transform(x, y, r, initial_location)
+            yield x, y
         for i in range(1, n):
             x -= 1
             y += 1
-            yield hex_transform(x, y, r, initial_location)
+            yield x, y
         for i in range(1, n):
             x -= 1
-            yield hex_transform(x, y, r, initial_location)
+            yield x, y
         for i in range(1, n):
             y -= 1
-            yield hex_transform(x, y, r, initial_location)
+            yield x, y
         for i in range(1, n):
             x += 1
             y -= 1
-            yield hex_transform(x, y, r, initial_location)
+            yield x, y
     for i in range(1, num_steps):
         x += 1
-        yield hex_transform(x, y, r, initial_location)
+        yield x, y
+
+
+def generate_location_steps3(num_steps):
+    # the height of the unit equilateral triangle: 0.866 ~= (3 ** 0.5) / 2.0
+    for x, y in generate_location_steps2(num_steps):
+        yield x + (y / 2.0), y * 0.886
+
+
+def generate_location_steps4(lat, lng, num_steps):
+    meters_delta = 150
+    # Conversion of radius from meters to deg
+    lat_delta = meters_delta / M_PER_DEG
+    lng_delta = meters_delta / M_PER_DEG / math.cos(lat * 0.0174533)
+    for x, y in generate_location_steps3(num_steps):
+        yield x * lat_delta + lat, y * lng_delta + lng
+
+
+M_PER_DEG = 111111.
 
 
 def main():
@@ -381,7 +385,7 @@ def main():
 
     while True:
         for step_lat, step_lng in generate_location_steps(
-            (origin_lat, origin_lng), steplimit,
+            origin_lat, origin_lng, steplimit,
         ):
             step_lat_i, step_lng_i = f2i(step_lat), f2i(step_lng)
 
