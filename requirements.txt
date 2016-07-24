@@ -1,7 +1,8 @@
 dumb-init==1.1.1
 flake8
+flask==0.11.1
 pgctl==1.9.0
 protobuf==2.6.1
+pytest
 requests==2.10.0
 s2sphere==0.2.4
-flask==0.11.1
