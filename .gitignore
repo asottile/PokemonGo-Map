@@ -2,3 +2,4 @@
 /config.json
 /database.db
 /venv
+.cache
