@@ -387,7 +387,7 @@ def main():
         create_tables(db)
 
     while True:
-        for step_lat, step_lng in generate_location_steps(
+        for step_lat, step_lng in generate_location_steps4(
             origin_lat, origin_lng, steplimit,
         ):
             step_lat_i, step_lng_i = f2i(step_lat), f2i(step_lng)
