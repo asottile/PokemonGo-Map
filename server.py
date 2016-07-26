@@ -73,8 +73,10 @@ ORIGIN_ICON = {
 
 
 LABEL_TEMPLATE = (
-    u'<div><b>{pokemon.name}</b></div>'
-    u'<div>Disappears at - {pokemon.expires_at_formatted} <span class="label-countdown" disappears-at="{pokemon.expires_at}"></span></div>'
+    '<div><b>{pokemon.name}</b></div>'
+    '<div>Disappears at - {pokemon.expires_at_formatted} '
+    '<span class="label-countdown" disappears-at="{pokemon.expires_at}">'
+    '</span></div>'
 )
 
 

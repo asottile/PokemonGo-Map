@@ -22,11 +22,15 @@ import pokemon_pb2
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 API_URL = 'https://pgorelease.nianticlabs.com/plfe/rpc'
-LOGIN_URL = \
-    'https://sso.pokemon.com/sso/login?service=https://sso.pokemon.com/sso/oauth2.0/callbackAuthorize'
+LOGIN_URL = (
+    'https://sso.pokemon.com/sso/login?service='
+    'https://sso.pokemon.com/sso/oauth2.0/callbackAuthorize'
+)
 LOGIN_OAUTH = 'https://sso.pokemon.com/sso/oauth2.0/accessToken'
 
-PTC_CLIENT_SECRET = 'w8ScCUXJQc6kXKw8FiOhd8Fixzht18Dq3PEVkUCP5ZPxtgyWsbTvWHFLm2wNY0JR'
+PTC_CLIENT_SECRET = (
+    'w8ScCUXJQc6kXKw8FiOhd8Fixzht18Dq3PEVkUCP5ZPxtgyWsbTvWHFLm2wNY0JR'
+)
 
 SESSION = requests.session()
 SESSION.headers.update({'User-Agent': 'Niantic App'})
@@ -131,13 +135,21 @@ def api_req(api_endpoint, access_token, *args, **kwargs):
 def get_api_endpoint(access_token, loc):
     profile_response = None
     while not profile_response:
-        profile_response = retrying_get_profile(access_token, API_URL, None, loc)
+        profile_response = retrying_get_profile(
+            access_token, API_URL, None, loc,
+        )
         if not hasattr(profile_response, 'api_url'):
-            print('retrying_get_profile: get_profile returned no api_url, retrying')
+            print(
+                'retrying_get_profile: get_profile returned no api_url, '
+                'retrying'
+            )
             profile_response = None
             continue
         if not len(profile_response.api_url):
-            print('get_api_endpoint: retrying_get_profile returned no-len api_url, retrying')
+            print(
+                'get_api_endpoint: retrying_get_profile returned no-len '
+                'api_url, retrying'
+            )
             profile_response = None
 
     return 'https://%s/rpc' % profile_response.api_url
@@ -148,11 +160,17 @@ def retrying_get_profile(access_token, api, useauth, loc):
     while not profile_response:
         profile_response = get_profile(access_token, api, useauth, loc=loc)
         if not hasattr(profile_response, 'payload'):
-            print('retrying_get_profile: get_profile returned no payload, retrying')
+            print(
+                'retrying_get_profile: get_profile returned no payload, '
+                'retrying'
+            )
             profile_response = None
             continue
         if not profile_response.payload:
-            print('retrying_get_profile: get_profile returned no-len payload, retrying')
+            print(
+                'retrying_get_profile: get_profile returned no-len payload, '
+                'retrying'
+            )
             profile_response = None
 
     return profile_response
@@ -202,11 +220,8 @@ def login_ptc(username, password):
         print('login_ptc: could not decode JSON from {}'.format(r.text))
         return None
 
-    # Maximum password length is 15 (sign in page enforces this limit, API does not)
-
-    if len(password) > 15:
-        print('[!] Trimming password to 15 characters')
-        password = password[:15]
+    # Maximum password length is 15
+    assert len(password) <= 15, len(password)
 
     data = {
         'lt': jdata['lt'],
@@ -293,7 +308,9 @@ def login(origin):
 
     print('[+] Received API endpoint: {}'.format(api_endpoint))
 
-    profile_response = retrying_get_profile(access_token, api_endpoint, None, origin)
+    profile_response = retrying_get_profile(
+        access_token, api_endpoint, None, origin,
+    )
     if profile_response is None or not profile_response.payload:
         raise Exception('Could not get profile')
 
@@ -403,7 +420,9 @@ def main():
 
     while True:
         for loc in generate_location_steps4(origin, steplimit):
-            hh = get_heartbeat(api_endpoint, access_token, profile_response, loc)
+            hh = get_heartbeat(
+                api_endpoint, access_token, profile_response, loc,
+            )
             data = []
             for cell in hh.cells:
                 for poke in cell.WildPokemon:
