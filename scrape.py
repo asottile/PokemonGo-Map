@@ -1,5 +1,4 @@
 import collections
-import sqlite3
 import math
 import re
 import struct
@@ -17,6 +16,9 @@ from requests.adapters import ConnectionError
 from requests.models import InvalidURL
 
 import pokemon_pb2
+from _db_logic import connect_db
+from _db_logic import DATA
+from _db_logic import LURE_DATA
 
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
@@ -333,34 +335,6 @@ def login(origin):
     return api_endpoint, access_token, profile_response
 
 
-def create_tables(db):
-    results = db.execute(
-        'SELECT name '
-        'FROM sqlite_master '
-        'WHERE type="table" and name="data"'
-    ).fetchall()
-    if not results:
-        db.execute(
-            'CREATE TABLE data (\n'
-            '    spawn_id CHAR(12) NOT NULL,\n'
-            '    pokemon INT NOT NULL,\n'
-            '    lat FLOAT NOT NULL,\n'
-            '    lng FLOAT NOT NULL,\n'
-            '    expires_at_ms INT NOT NULL,\n'
-            '    PRIMARY KEY (spawn_id, expires_at_ms)\n'
-            ')'
-        )
-
-
-def insert_data(db, data):
-    db.executemany(
-        'INSERT OR REPLACE INTO data\n'
-        '(spawn_id, pokemon, lat, lng, expires_at_ms)\n'
-        'VALUES (?, ?, ?, ?, ?)',
-        data,
-    )
-
-
 def generate_location_steps2(num_steps):
     x, y = 0, 0
     yield x, y
@@ -415,29 +389,45 @@ M_PER_DEG = 111111.
 def main():
     api_endpoint, access_token, profile_response = login(origin)
 
-    with sqlite3.connect('database.db') as db:
-        create_tables(db)
+    with connect_db() as db:
+        DATA.ensure_table_exists(db)
+        LURE_DATA.ensure_table_exists(db)
 
     while True:
         for loc in generate_location_steps4(origin, steplimit):
             hh = get_heartbeat(
                 api_endpoint, access_token, profile_response, loc,
             )
-            data = []
+            data = set()
+            lure_data = set()
             for cell in hh.cells:
                 for poke in cell.WildPokemon:
                     disappear_ms = cell.AsOfTimeMs + poke.TimeTillHiddenMs
-                    data.append((
+                    data.add((
                         poke.SpawnPointId,
                         poke.pokemon.PokemonId,
                         poke.Latitude,
                         poke.Longitude,
                         disappear_ms,
                     ))
+                for fort in cell.Fort:
+                    if fort.LureInfo.ActivePokemonId:
+                        lure_data.add((
+                            fort.FortId,
+                            fort.LureInfo.ActivePokemonId,
+                            fort.Latitude,
+                            fort.Longitude,
+                            fort.LureInfo.LureExpiresTimestampMs,
+                        ))
+
             if data:
-                print('Upserting {} pokemon'.format(len(data)))
-                with sqlite3.connect('database.db') as db:
-                    insert_data(db, data)
+                print('Upserting {} wild pokemon'.format(len(data)))
+                with connect_db() as db:
+                    DATA.insert_data(db, data)
+            if lure_data:
+                print('Upserting {} lure pokemon'.format(len(lure_data)))
+                with connect_db() as db:
+                    LURE_DATA.insert_data(db, lure_data)
 
 
 if __name__ == '__main__':

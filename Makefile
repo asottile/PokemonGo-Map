@@ -4,4 +4,4 @@ venv: requirements.txt
 .PHONY: test
 test: venv
 	venv/bin/py.test tests
-	venv/bin/flake8 scrape.py server.py
+	venv/bin/flake8 _db_logic.py scrape.py server.py

@@ -1,10 +1,13 @@
 import collections
 import json
-import sqlite3
 import time
 from datetime import datetime
 
 import flask
+
+from _db_logic import connect_db
+from _db_logic import DATA
+from _db_logic import LURE_DATA
 
 
 with open('config.json') as config:
@@ -109,12 +112,11 @@ class Pokemon(collections.namedtuple(
 
 
 def get_pokemarkers():
-    with sqlite3.connect('database.db') as db:
-        all_data = db.execute(
-            'SELECT * FROM data WHERE expires_at_ms > ?',
-            (time.time() * 1000,),
-        ).fetchall()
-        all_data = [Pokemon(*row) for row in all_data]
+    current_time_ms = time.time() * 1000
+    with connect_db() as db:
+        data = DATA.select_non_expired(db, current_time_ms)
+        lure_data = LURE_DATA.select_non_expired(db, current_time_ms)
+        all_data = [Pokemon(*row) for row in data + lure_data]
 
     return [ORIGIN_ICON] + [
         pokemon.to_marker() for pokemon in all_data
