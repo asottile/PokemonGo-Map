@@ -1,7 +1,7 @@
 dumb-init==1.1.1
 flake8
 flask==0.11.1
-pgctl==1.9.0
+pgctl==2.0.0
 protobuf==3.0.0b4
 pytest
 requests==2.10.0

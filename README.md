@@ -15,7 +15,7 @@ Rough usage:
     - `$EDITOR config.json`
 - `make venv`
 - `. venv/bin/activate`
-- `pgctl-2015 start`
+- `pgctl start`
 
 
 [1]: https://console.developers.google.com/flows/enableapi?apiid=maps_backend,geocoding_backend,directions_backend,distance_matrix_backend,elevation_backend,places_backend&keyType=CLIENT_SIDE&reusekey=true
