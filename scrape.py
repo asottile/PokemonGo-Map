@@ -197,9 +197,9 @@ def login_ptc(username, password):
         raise AssertionError('No login')
 
     try:
-        jdata = json.loads(r.content.decode())
+        jdata = r.json()
     except ValueError:
-        print('login_ptc: could not decode JSON from {}'.format(r.content))
+        print('login_ptc: could not decode JSON from {}'.format(r.text))
         return None
 
     # Maximum password length is 15 (sign in page enforces this limit, API does not)
