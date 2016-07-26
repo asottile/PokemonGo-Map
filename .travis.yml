@@ -6,8 +6,3 @@ script: make test
 cache:
     directories:
         - $HOME/.cache/pip-faster
-# Workaround for https://github.com/google/protobuf/issues/1849
-addons:
-    apt:
-        packages:
-        -   protobuf-compiler
