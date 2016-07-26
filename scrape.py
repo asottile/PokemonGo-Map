@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import collections
 import sqlite3
 import math
@@ -61,7 +60,7 @@ with open('config.json') as config:
 def encode(cellid):
     output = []
     encoder._VarintEncoder()(output.append, cellid)
-    return ''.join(output)
+    return b''.join(output)
 
 
 def get_neighbors(loc):
@@ -191,14 +190,14 @@ def get_profile(access_token, api, useauth, *reqq, **kwargs):
 
 
 def login_ptc(username, password):
-    print '[!] PTC login for: {}'.format(username)
+    print('[!] PTC login for: {}'.format(username))
     head = {'User-Agent': 'Niantic App'}
     r = SESSION.get(LOGIN_URL, headers=head)
     if r is None:
         raise AssertionError('No login')
 
     try:
-        jdata = json.loads(r.content)
+        jdata = json.loads(r.content.decode())
     except ValueError:
         print('login_ptc: could not decode JSON from {}'.format(r.content))
         return None
@@ -206,7 +205,7 @@ def login_ptc(username, password):
     # Maximum password length is 15 (sign in page enforces this limit, API does not)
 
     if len(password) > 15:
-        print '[!] Trimming password to 15 characters'
+        print('[!] Trimming password to 15 characters')
         password = password[:15]
 
     data = {
@@ -232,8 +231,8 @@ def login_ptc(username, password):
         'code': ticket,
     }
     r2 = SESSION.post(LOGIN_OAUTH, data=data1)
-    access_token = re.sub('&expires.*', '', r2.content)
-    access_token = re.sub('.*access_token=', '', access_token)
+    access_token = re.sub(b'&expires.*', b'', r2.content)
+    access_token = re.sub(b'.*access_token=', b'', access_token)
 
     return access_token
 
@@ -245,15 +244,14 @@ def get_heartbeat(api_endpoint, access_token, response, loc):
     m4.message = m.SerializeToString()
     m5 = pokemon_pb2.RequestEnvelop.Requests()
     m = pokemon_pb2.RequestEnvelop.MessageSingleString()
-    m.bytes = '05daf51635c82611d1aac95c0b051d3ec088a930'
+    m.bytes = b'05daf51635c82611d1aac95c0b051d3ec088a930'
     m5.message = m.SerializeToString()
     walk = sorted(get_neighbors(loc))
     m1 = pokemon_pb2.RequestEnvelop.Requests()
     m1.type = 106
     m = pokemon_pb2.RequestEnvelop.MessageQuad()
-    m.f1 = ''.join(map(encode, walk))
-    m.f2 = \
-        "\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000"
+    m.f1 = b''.join(map(encode, walk))
+    m.f2 = b'\x00' * 21
     m.lat, m.long = loc.lat_i, loc.lng_i
     m1.message = m.SerializeToString()
     response = get_profile(
@@ -287,32 +285,33 @@ def login(origin):
     if access_token is None:
         raise Exception('[-] Wrong username/password')
 
-    print '[+] RPC Session Token: {} ...'.format(access_token[:25])
+    print('[+] RPC Session Token: {} ...'.format(access_token[:25].decode()))
 
     api_endpoint = get_api_endpoint(access_token, origin)
     if api_endpoint is None:
         raise Exception('[-] RPC server offline')
 
-    print '[+] Received API endpoint: {}'.format(api_endpoint)
+    print('[+] Received API endpoint: {}'.format(api_endpoint))
 
     profile_response = retrying_get_profile(access_token, api_endpoint, None, origin)
     if profile_response is None or not profile_response.payload:
         raise Exception('Could not get profile')
 
-    print '[+] Login successful'
+    print('[+] Login successful')
 
     payload = profile_response.payload[0]
     profile = pokemon_pb2.ResponseEnvelop.ProfilePayload()
     profile.ParseFromString(payload)
-    print '[+] Username: {}'.format(profile.profile.username)
+    print('[+] Username: {}'.format(profile.profile.username))
 
     creation_time = \
         datetime.fromtimestamp(int(profile.profile.creation_time) / 1000)
-    print '[+] You started playing Pokemon Go on: {}'.format(
-        creation_time.strftime('%Y-%m-%d %H:%M:%S'))
+    print('[+] You started playing Pokemon Go on: {}'.format(
+        creation_time.strftime('%Y-%m-%d %H:%M:%S'),
+    ))
 
     for curr in profile.profile.currency:
-        print '[+] {}: {}'.format(curr.type, curr.amount)
+        print('[+] {}: {}'.format(curr.type, curr.amount))
 
     return api_endpoint, access_token, profile_response
 

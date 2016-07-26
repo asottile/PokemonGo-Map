@@ -1,8 +1,13 @@
 language: python
-python: 2.7
+python: 3.5
 before_install: cp config.example.json config.json
 install: make venv
 script: make test
 cache:
     directories:
         - $HOME/.cache/pip-faster
+# Workaround for https://github.com/google/protobuf/issues/1849
+addons:
+    apt:
+        packages:
+        -   protobuf-compiler
