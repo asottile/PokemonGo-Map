@@ -1,21 +1,24 @@
 # -*- coding: utf-8 -*-
+import collections
 import sqlite3
-
 import math
 import re
 import struct
 import json
-import requests
-import pokemon_pb2
 import time
+from datetime import datetime
+
+import requests
 from google.protobuf.internal import encoder
 from google.protobuf.message import DecodeError
 from s2sphere import CellId
 from s2sphere import LatLng
-from datetime import datetime
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from requests.adapters import ConnectionError
 from requests.models import InvalidURL
+
+import pokemon_pb2
+
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
@@ -30,12 +33,28 @@ SESSION = requests.session()
 SESSION.headers.update({'User-Agent': 'Niantic App'})
 SESSION.verify = False
 
+
+class Location(collections.namedtuple('Location', ('lat', 'lng'))):
+    __slots__ = ()
+
+    @property
+    def lat_i(self):
+        return f2i(self.lat)
+
+    @property
+    def lng_i(self):
+        return f2i(self.lng)
+
+    @property
+    def lat_lng(self):
+        return LatLng.from_degrees(*self)
+
+
 with open('config.json') as config:
     config = json.load(config)
     global_password = config['password']
     global_username = config['username']
-    origin_lat = config['latitude']
-    origin_lng = config['longitude']
+    origin = Location(config['latitude'], config['longitude'])
     steplimit = config['steplimit']
 
 
@@ -45,8 +64,8 @@ def encode(cellid):
     return ''.join(output)
 
 
-def get_neighbors(lat, lng):
-    origin = CellId.from_lat_lng(LatLng.from_degrees(lat, lng)).parent(15)
+def get_neighbors(loc):
+    origin = CellId.from_lat_lng(loc.lat_lng).parent(15)
     walk = [origin.id()]
 
     # 10 before and 10 after
@@ -77,13 +96,13 @@ def retrying_api_req(*args, **kwargs):
 
 
 def api_req(api_endpoint, access_token, *args, **kwargs):
-    lat_i, lng_i = kwargs.pop('lat_i'), kwargs.pop('lng_i')
+    loc = kwargs.pop('loc')
     p_req = pokemon_pb2.RequestEnvelop()
     p_req.rpc_id = 1469378659230941192
 
     p_req.unknown1 = 2
 
-    p_req.latitude, p_req.longitude, p_req.altitude = lat_i, lng_i, 0
+    p_req.latitude, p_req.longitude, p_req.altitude = loc.lat_i, loc.lng_i, 0
 
     p_req.unknown12 = 989
 
@@ -110,10 +129,10 @@ def api_req(api_endpoint, access_token, *args, **kwargs):
     return p_ret
 
 
-def get_api_endpoint(access_token, lat_i, lng_i):
+def get_api_endpoint(access_token, loc):
     profile_response = None
     while not profile_response:
-        profile_response = retrying_get_profile(access_token, API_URL, None, lat_i, lng_i)
+        profile_response = retrying_get_profile(access_token, API_URL, None, loc)
         if not hasattr(profile_response, 'api_url'):
             print('retrying_get_profile: get_profile returned no api_url, retrying')
             profile_response = None
@@ -125,10 +144,10 @@ def get_api_endpoint(access_token, lat_i, lng_i):
     return 'https://%s/rpc' % profile_response.api_url
 
 
-def retrying_get_profile(access_token, api, useauth, lat_i, lng_i):
+def retrying_get_profile(access_token, api, useauth, loc):
     profile_response = None
     while not profile_response:
-        profile_response = get_profile(access_token, api, useauth, lat_i=lat_i, lng_i=lng_i)
+        profile_response = get_profile(access_token, api, useauth, loc=loc)
         if not hasattr(profile_response, 'payload'):
             print('retrying_get_profile: get_profile returned no payload, retrying')
             profile_response = None
@@ -141,7 +160,7 @@ def retrying_get_profile(access_token, api, useauth, lat_i, lng_i):
 
 
 def get_profile(access_token, api, useauth, *reqq, **kwargs):
-    lat_i, lng_i = kwargs.pop('lat_i'), kwargs.pop('lng_i')
+    loc = kwargs.pop('loc')
     assert not kwargs, kwargs
     req = pokemon_pb2.RequestEnvelop()
     req1 = req.requests.add()
@@ -168,7 +187,7 @@ def get_profile(access_token, api, useauth, *reqq, **kwargs):
     req5.type = 5
     if len(reqq) >= 5:
         req5.MergeFrom(reqq[4])
-    return retrying_api_req(api, access_token, req, lat_i=lat_i, lng_i=lng_i, useauth=useauth)
+    return retrying_api_req(api, access_token, req, loc=loc, useauth=useauth)
 
 
 def login_ptc(username, password):
@@ -219,7 +238,7 @@ def login_ptc(username, password):
     return access_token
 
 
-def get_heartbeat(api_endpoint, access_token, response, lat, lng, lat_i, lng_i):
+def get_heartbeat(api_endpoint, access_token, response, loc):
     m4 = pokemon_pb2.RequestEnvelop.Requests()
     m = pokemon_pb2.RequestEnvelop.MessageSingleInt()
     m.f1 = int(time.time() * 1000)
@@ -228,15 +247,14 @@ def get_heartbeat(api_endpoint, access_token, response, lat, lng, lat_i, lng_i):
     m = pokemon_pb2.RequestEnvelop.MessageSingleString()
     m.bytes = '05daf51635c82611d1aac95c0b051d3ec088a930'
     m5.message = m.SerializeToString()
-    walk = sorted(get_neighbors(lat, lng))
+    walk = sorted(get_neighbors(loc))
     m1 = pokemon_pb2.RequestEnvelop.Requests()
     m1.type = 106
     m = pokemon_pb2.RequestEnvelop.MessageQuad()
     m.f1 = ''.join(map(encode, walk))
     m.f2 = \
         "\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000"
-    m.lat = lat_i
-    m.long = lng_i
+    m.lat, m.long = loc.lat_i, loc.lng_i
     m1.message = m.SerializeToString()
     response = get_profile(
         access_token,
@@ -247,8 +265,7 @@ def get_heartbeat(api_endpoint, access_token, response, lat, lng, lat_i, lng_i):
         m4,
         pokemon_pb2.RequestEnvelop.Requests(),
         m5,
-        lat_i=lat_i,
-        lng_i=lng_i,
+        loc=loc,
     )
 
     try:
@@ -265,20 +282,20 @@ def get_token(username, password):
     return login_ptc(username, password)
 
 
-def login(lat_i, lng_i):
+def login(origin):
     access_token = get_token(global_username, global_password)
     if access_token is None:
         raise Exception('[-] Wrong username/password')
 
     print '[+] RPC Session Token: {} ...'.format(access_token[:25])
 
-    api_endpoint = get_api_endpoint(access_token, lat_i, lng_i)
+    api_endpoint = get_api_endpoint(access_token, origin)
     if api_endpoint is None:
         raise Exception('[-] RPC server offline')
 
     print '[+] Received API endpoint: {}'.format(api_endpoint)
 
-    profile_response = retrying_get_profile(access_token, api_endpoint, None, lat_i, lng_i)
+    profile_response = retrying_get_profile(access_token, api_endpoint, None, origin)
     if profile_response is None or not profile_response.payload:
         raise Exception('Could not get profile')
 
@@ -367,33 +384,27 @@ def generate_location_steps3(num_steps):
         yield x + (y / 2.0), y * UNIT_TRIANGLE_HEIGHT
 
 
-def generate_location_steps4(lat, lng, num_steps):
+def generate_location_steps4(loc, num_steps):
     meters_delta = 150
     # Conversion of radius from meters to deg
     lat_delta = meters_delta / M_PER_DEG
-    lng_delta = meters_delta / M_PER_DEG / math.cos(lat * 0.0174533)
+    lng_delta = meters_delta / M_PER_DEG / math.cos(loc.lat * 0.0174533)
     for x, y in generate_location_steps3(num_steps):
-        yield x * lat_delta + lat, y * lng_delta + lng
+        yield Location(x * lat_delta + loc.lat, y * lng_delta + loc.lng)
 
 
 M_PER_DEG = 111111.
 
 
 def main():
-    origin_lat_i, origin_lng_i = f2i(origin_lat), f2i(origin_lng)
-    api_endpoint, access_token, profile_response = login(origin_lat_i, origin_lng_i)
+    api_endpoint, access_token, profile_response = login(origin)
 
     with sqlite3.connect('database.db') as db:
         create_tables(db)
 
     while True:
-        for step_lat, step_lng in generate_location_steps4(
-            origin_lat, origin_lng, steplimit,
-        ):
-            step_lat_i, step_lng_i = f2i(step_lat), f2i(step_lng)
-
-            #print('[+] Searching for Pokemon at location {} {}'.format(step_lat, step_lng))
-            hh = get_heartbeat(api_endpoint, access_token, profile_response, step_lat, step_lng, step_lat_i, step_lng_i)
+        for loc in generate_location_steps4(origin, steplimit):
+            hh = get_heartbeat(api_endpoint, access_token, profile_response, loc)
             data = []
             for cell in hh.cells:
                 for poke in cell.WildPokemon:
@@ -409,9 +420,6 @@ def main():
                 print('Upserting {} pokemon'.format(len(data)))
                 with sqlite3.connect('database.db') as db:
                     insert_data(db, data)
-
-            #print('Completed: ' + str(
-            #    ((step+1) + pos * .25 - .25) / (steplimit2) * 100) + '%')
 
 
 if __name__ == '__main__':
