@@ -1,5 +1,5 @@
 (function () {
-    var map, markerCache = {};
+    var map, markerCache = {}, body = $('body');
 
     function zeroPad(n) {
         return ('0' + n).slice(-2);
@@ -86,10 +86,32 @@
         });
     }
 
+    function showModal(modalElement, e) {
+        body.addClass('modal-visible');
+        modalElement.removeClass('hidden');
+        e.stopPropagation();
+    }
+
+    function maybeHideModals(e) {
+        if ($(e.target).is('.modal-visible')) {
+            body.removeClass('modal-visible');
+            $('.modal').addClass('hidden');
+        }
+    }
+
+    function handleKeypress(e) {
+        if (e.which === 27) {
+            maybeHideModals(e);
+        }
+    }
+
     window.initMap = function () {
         createMap();
         updateMap();
         $('.refresh').on('click', updateMap);
+        $('.about').on('click', showModal.bind(null, $('.modal-about')));
+        body.on('click', maybeHideModals);
+        $(window).on('keyup', handleKeypress);
         if (window.POGO.autoRefresh) {
             window.setInterval(updateMap, window.POGO.autoRefresh);
         }
