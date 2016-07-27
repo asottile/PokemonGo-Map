@@ -5,6 +5,10 @@ html, body {
     font-family: arial, sans-serif;
 }
 
+.hidden {
+    display: none;
+}
+
 .wrapper {
     display: flex;
     flex-direction: column;
@@ -42,4 +46,35 @@ html, body {
 .button:hover {
     background-color: #333;
     border-color: #ccc;
+}
+
+.modal {
+    background-color: #eee;
+    border-radius: 15px;
+    border: 3px solid #333;
+    margin: auto;
+    padding: 1em;
+    position: fixed;
+    z-index: 9999;
+    left: 0;
+    right: 0;
+    top: 5em;
+    width: 75%;
+}
+
+body.modal-visible:after {
+    background-color: #000;
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 9998;
+    opacity: 0.3;
+    content: '';
+}
+
+h3 {
+    margin: 0 1em;
+    border-bottom: 2px solid #000;
 }
