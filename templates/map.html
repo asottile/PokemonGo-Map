@@ -11,9 +11,15 @@
     <div class="wrapper">
         <div class="nav">
             <span class="refresh button">refresh</span>
+            <span class="settings button">settings</span>
             <span class="about button">about</span>
         </div>
         <div class="map-container"><div id="fullmap"></div></div>
+    </div>
+    <div class="modal-settings modal hidden">
+        <h3>settings</h3>
+        <input class="search" placeholder="Type ### or pokemon to search">
+        <div class="search-results">No results.</div>
     </div>
     <div class="modal-about modal hidden">
         <h3>about</h3>
@@ -26,14 +32,7 @@
             </a></li>
         </ul>
     </div>
-    <script>
-        window.POGO = {
-            autoRefresh: {{ auto_refresh * 1000 }},
-            originLat: {{ origin_lat }},
-            originLng: {{ origin_lng }},
-            zoom: {{ zoom }}
-        };
-    </script>
+    <script>window.POGO = {{ js_globals | tojson }};</script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
     <script src="/static/js/main.js?{{ js_timestamp }}"></script>
     <script src="https://maps.googleapis.com/maps/api/js?key={{ key }}&amp;callback=initMap"></script>
