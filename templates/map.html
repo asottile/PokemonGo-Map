@@ -5,13 +5,18 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Pokemon go map</title>
+    <link rel="stylesheet" href="/static/css/main.css?{{ timestamp }}">
 </head>
 <body>
-    <div id="fullmap" style='height:100%;width:100%;top:0;left:0;position:absolute;z-index:200;'>
+    <div class="wrapper">
+        <div class="nav">
+            <span class="refresh button">refresh</span>
+        </div>
+        <div class="map-container"><div id="fullmap"></div></div>
     </div>
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
     <script>
-        var setLabelTime = function () {
+        function setLabelTime() {
             $('.label-countdown').each(function (index, element) {
                 var disappearsAt = new Date(parseInt(element.getAttribute("disappears-at"))*1000);
                 var now = new Date();
@@ -140,13 +145,14 @@
                         _marker.key = key;
                     })(marker, disappearsAt);
                 }
-            })
+            });
         }
 
         function initMap() {
             $.get(baseURL + '/config', function(data) {
                 createMap(data);
                 updateMap();
+                $('.refresh').on('click', updateMap);
                 {% if auto_refresh %}
                 window.setInterval(updateMap, {{ auto_refresh * 1000 }});
                 {% endif %}

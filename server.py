@@ -1,5 +1,6 @@
 import collections
 import json
+import os
 import time
 from datetime import datetime
 
@@ -60,7 +61,12 @@ def fullmap():
     else:
         auto_refresh_interval = auto_refresh
     return flask.render_template(
-        'map.html', key=GOOGLEMAPS_KEY, auto_refresh=auto_refresh_interval,
+        'map.html',
+        key=GOOGLEMAPS_KEY,
+        auto_refresh=auto_refresh_interval,
+        # Mobile browsers cache forever, let's at least give them a hint about
+        # the timestamp
+        timestamp=os.stat('static/css/main.css').st_mtime,
     )
 
 
