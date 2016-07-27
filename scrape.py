@@ -13,7 +13,7 @@ from s2sphere import CellId
 from s2sphere import LatLng
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from requests.adapters import ConnectionError
-from requests.models import InvalidURL
+from retry import retry
 
 import pokemon_pb2
 from _db_logic import connect_db
@@ -37,6 +37,11 @@ PTC_CLIENT_SECRET = (
 SESSION = requests.session()
 SESSION.headers.update({'User-Agent': 'Niantic App'})
 SESSION.verify = False
+
+
+class RetryError(RuntimeError):
+    def __str__(self):
+        return 'Too many retries: {}'.format(*self.args)
 
 
 class Location(collections.namedtuple('Location', ('lat', 'lng'))):
@@ -88,16 +93,13 @@ def f2i(float):
     return struct.unpack('<Q', struct.pack('<d', float))[0]
 
 
+@retry((ConnectionError, DecodeError, RetryError), tries=20, delay=.5)
 def retrying_api_req(*args, **kwargs):
-    while True:
-        try:
-            response = api_req(*args, **kwargs)
-            if response:
-                return response
-            print('retrying_api_req: api_req returned None, retrying')
-        except (InvalidURL, ConnectionError, DecodeError) as e:
-            print('retrying_api_req: request error ({!r}), retrying'.format(e))
-        time.sleep(1)
+    response = api_req(*args, **kwargs)
+    if not response:
+        raise RetryError('api_req returned None')
+    else:
+        return response
 
 
 def api_req(api_endpoint, access_token, *args, **kwargs):
@@ -157,25 +159,13 @@ def get_api_endpoint(access_token, loc):
     return 'https://%s/rpc' % profile_response.api_url
 
 
+@retry(RetryError, tries=10, delay=.5)
 def retrying_get_profile(access_token, api, useauth, loc):
-    profile_response = None
-    while not profile_response:
-        profile_response = get_profile(access_token, api, useauth, loc=loc)
-        if not hasattr(profile_response, 'payload'):
-            print(
-                'retrying_get_profile: get_profile returned no payload, '
-                'retrying'
-            )
-            profile_response = None
-            continue
-        if not profile_response.payload:
-            print(
-                'retrying_get_profile: get_profile returned no-len payload, '
-                'retrying'
-            )
-            profile_response = None
-
-    return profile_response
+    profile_response = get_profile(access_token, api, useauth, loc=loc)
+    if not profile_response.payload:
+        raise RetryError('get_profile returned no-len payload')
+    else:
+        return profile_response
 
 
 def get_profile(access_token, api, useauth, *reqq, **kwargs):
