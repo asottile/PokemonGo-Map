@@ -5,4 +5,5 @@ pgctl==2.0.0
 protobuf==3.0.0b4
 pytest
 requests==2.10.0
+retry
 s2sphere==0.2.4
