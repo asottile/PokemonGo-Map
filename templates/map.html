@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Pokemon go map</title>
-    <link rel="stylesheet" href="/static/css/main.css?{{ timestamp }}">
+    <link rel="stylesheet" href="/static/css/main.css?{{ css_timestamp }}">
 </head>
 <body>
     <div class="wrapper">
@@ -14,151 +14,16 @@
         </div>
         <div class="map-container"><div id="fullmap"></div></div>
     </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
     <script>
-        function setLabelTime() {
-            $('.label-countdown').each(function (index, element) {
-                var disappearsAt = new Date(parseInt(element.getAttribute("disappears-at"))*1000);
-                var now = new Date();
-            
-                var difference = Math.abs(disappearsAt - now);
-                var hours = Math.floor(difference / 36e5);
-                var minutes = Math.floor((difference - (hours * 36e5)) / 6e4);
-                var seconds = Math.floor((difference - (hours * 36e5) - (minutes * 6e4)) / 1e3);
-            
-                if (disappearsAt < now) {
-                    timestring = "(expired)";
-                } else {
-                    timestring = "(";
-                    if(hours > 0)
-                        timestring = hours + "h";
-                
-                    timestring += ("0" + minutes).slice(-2) + "m";
-                    timestring += ("0" + seconds).slice(-2) + "s";
-                    timestring += ")";
-                }
-
-                $(element).text(timestring)
-            });
+        window.POGO = {
+            autoRefresh: {{ auto_refresh * 1000 }},
+            originLat: {{ origin_lat }},
+            originLng: {{ origin_lng }},
+            zoom: {{ zoom }}
         };
-
-        window.setInterval(setLabelTime, 1000);
-
-        var baseURL = location.protocol + "//" + location.hostname + (location.port ? ":"+location.port: "");
-        var map = null;
-        var markerCache = {};
-
-        function addMarker(options) {
-            var markerOptions = $.extend({map: map}, options);
-            return new google.maps.Marker(markerOptions);
-        }
-
-        function createMap(options) {
-            map = new google.maps.Map(
-                document.getElementById(options["identifier"]), {
-                    center: new google.maps.LatLng(options["lat"], options["lng"]),
-                    zoom: options["zoom"],
-                    mapTypeId: google.maps.MapTypeId.ROADMAP,
-                    zoomControl: true,
-                    mapTypeControl: true,
-                    scaleControl: true,
-                    streetViewControl: true,
-                    rotateControl: true,
-                    fullscreenControl: true
-            });
-        }
-
-        function updateMap() {
-            // Requests the data and populates the map
-            $.get(baseURL + "/data", function(json_obj) {
-                var now = new Date();
-                
-                for (var index in json_obj) {
-                    var item = json_obj[index];
-                    var key = item["type"] + item["key"];
-                    if (Object.keys(markerCache).indexOf(key) >= 0) {
-                        var needs_replacing = false;
-                        if(item["type"] == "gym" && item["icon"] != markerCache[key].item.icon){
-                            (function(_marker){setTimeout(_marker.setMap(null), 500)})(markerCache[key].marker);
-                            needs_replacing = true;
-                        }
-                        if((markerCache[key].item.lat != item["lat"] || markerCache[key].item.lng != item['lng'])){
-
-                            console.log("Warning: object with identical key has different coordinates please report bug", key);
-                            needs_replacing = true;
-                        }
-                        if (markerCache[key].item.type != item["type"] || (item["infobox"] != null && markerCache[key].item["infobox"] != null && item["infobox"] != markerCache[key].item["infobox"])) {
-                            (function(_marker){setTimeout(_marker.setMap(null), 500)})(markerCache[key].marker);
-                            needs_replacing = true;
-						}
-                        if(!needs_replacing){
-                            continue;
-                        }
-                    }
-                    if(markerCache[key] != null && markerCache[key].marker != null){
-                        markerCache[key].marker.setMap(null);
-                    }
-                    var disappearsAt;
-
-                    if (item["disappear_time"] != null) {
-                        if(parseInt(item["disappear_time"]) < 0){
-                            disappearsAt = -1;
-                        } else {
-                            disappearsAt = new Date(parseInt(item["disappear_time"] * 1000)) - now;
-                            if(disappearsAt < 0){
-                                continue;
-                            }
-                        }
-                    } else {
-                        disappearsAt = {{ auto_refresh }} * 1000 + 500;
-                    }
-                    var marker = addMarker({
-                        position: new google.maps.LatLng(item["lat"], item["lng"]),
-                        map: map,
-                        icon: item["icon"],
-                    });
-                    markerCache[key] = {item: item, marker: marker};
-
-                    if (item["infobox"]) {
-                        (function(_infobox, _map, _marker){
-                            _marker.infoWindow = new google.maps.InfoWindow({
-                                content: _infobox
-                            });
-                            _marker.addListener('click', function() {
-                                _marker.infoWindow.open(_map, _marker);
-                                _marker["persist"] = true;
-                            });
-
-                            google.maps.event.addListener(_marker.infoWindow,'closeclick',function(){
-                               _marker["persist"] = null;
-                            });
-                        })(item["infobox"], map, marker);
-                    }
-
-                    (function(_marker, _disappearsAt){
-                        if(_disappearsAt < 0){
-
-                        } else {
-                            var timeout = setTimeout(function(){_marker.setMap(null);}, Math.ceil(_disappearsAt))
-                            _marker.timeout = timeout;
-                        }
-                        _marker.key = key;
-                    })(marker, disappearsAt);
-                }
-            });
-        }
-
-        function initMap() {
-            $.get(baseURL + '/config', function(data) {
-                createMap(data);
-                updateMap();
-                $('.refresh').on('click', updateMap);
-                {% if auto_refresh %}
-                window.setInterval(updateMap, {{ auto_refresh * 1000 }});
-                {% endif %}
-            });
-        }
     </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+    <script src="/static/js/main.js?{{ js_timestamp }}"></script>
     <script src="https://maps.googleapis.com/maps/api/js?key={{ key }}&amp;callback=initMap"></script>
-    </body>
+</body>
 </html>

@@ -40,18 +40,7 @@ app = flask.Flask(__name__, template_folder='templates')
 
 @app.route('/data')
 def data():
-    """ Gets all the PokeMarkers via REST """
     return flask.jsonify(get_pokemarkers())
-
-
-@app.route('/config')
-def config():
-    return flask.jsonify({
-        'lat': origin_lat,
-        'lng': origin_lng,
-        'zoom': zoom,
-        'identifier': "fullmap"
-    })
 
 
 @app.route('/')
@@ -64,27 +53,20 @@ def fullmap():
         'map.html',
         key=GOOGLEMAPS_KEY,
         auto_refresh=auto_refresh_interval,
+        origin_lat=origin_lat,
+        origin_lng=origin_lng,
+        zoom=zoom,
         # Mobile browsers cache forever, let's at least give them a hint about
         # the timestamp
-        timestamp=os.stat('static/css/main.css').st_mtime,
+        css_timestamp=os.stat('static/css/main.css').st_mtime,
+        js_timestamp=os.stat('static/js/main.js').st_mtime,
     )
-
-
-ORIGIN_ICON = {
-    'icon': '//maps.google.com/mapfiles/ms/icons/red-dot.png',
-    'lat': origin_lat,
-    'lng': origin_lng,
-    'infobox': "Start position",
-    'type': 'custom',
-    'key': 'start-position',
-    'disappear_time': -1
-}
 
 
 LABEL_TEMPLATE = (
     '<div><b>{pokemon.name}</b></div>'
     '<div>Disappears at - {pokemon.expires_at_formatted} '
-    '<span class="label-countdown" disappears-at="{pokemon.expires_at}">'
+    '<span class="label-countdown" disappears-at="{pokemon.expires_at_ms}">'
     '</span></div>'
 )
 
@@ -107,9 +89,9 @@ class Pokemon(collections.namedtuple(
     def to_marker(self):
         return {
             'type': 'pokemon',
-            'key': self.spawn_id,
+            'key': '{}@{}'.format(self.spawn_id, self.expires_at_ms),
             'pokemon': self.number,
-            'disappear_time': self.expires_at,
+            'disappear_time': self.expires_at_ms,
             'icon': 'static/icons/{}.png'.format(self.number),
             'lat': self.lat,
             'lng': self.lng,
@@ -124,7 +106,7 @@ def get_pokemarkers():
         lure_data = LURE_DATA.select_non_expired(db, current_time_ms)
         all_data = [Pokemon(*row) for row in data + lure_data]
 
-    return [ORIGIN_ICON] + [
+    return [
         pokemon.to_marker() for pokemon in all_data
         if pokemon.name.lower() not in ignore
     ]
