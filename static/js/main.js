@@ -87,11 +87,7 @@
                 rotateControl: true,
                 fullscreenControl: true
         });
-        new google.maps.Marker({
-            position: center,
-            map: map,
-            icon: '//maps.google.com/mapfiles/ms/icons/red-dot.png'
-        });
+        new google.maps.Marker({position: center, map: map});
     }
 
     var INFOBOX_TEMPLATE = [
