@@ -1,12 +1,12 @@
 (function () {
     var map, markerCache = {};
 
+    function zeroPad(n) {
+        return ('0' + n).slice(-2);
+    }
+
     // Label countdown
     (function () {
-        function zeroPad(n) {
-            return ('0' + n).slice(-2);
-        }
-
         function setLabelTime() {
             $('.label-countdown').each(function (index, element) {
                 var difference, minutes, seconds, timestring,
@@ -99,7 +99,11 @@
 
     function makeInfoBox(item) {
         var date = new Date(item.disappear_time),
-            formattedDate = date.getHours() + ':' + date.getMinutes() + ':' + date.getSeconds();
+            formattedDate = [
+                zeroPad(date.getHours()), ':',
+                zeroPad(date.getMinutes()), ':',
+                zeroPad(date.getSeconds())
+            ].join('');
         return (
             INFOBOX_TEMPLATE
                 .replace(/NAME/g, window.POGO.pokemon[item.pokemon])
