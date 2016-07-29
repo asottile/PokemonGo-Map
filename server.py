@@ -20,12 +20,9 @@ with open('config.json') as config:
     port = config['port']
     auto_refresh = config['auto_refresh']
     zoom = config['zoom']
-    ignore = {name.lower() for name in config['ignore']}
 
 with open('pokemon.en.json') as pokemon_names_file:
-    pokemon_names = {
-        int(k): v for k, v in json.load(pokemon_names_file).items()
-    }
+    pokemon_names = json.load(pokemon_names_file)
 
 
 def time_left(ms):
@@ -40,7 +37,11 @@ app = flask.Flask(__name__, template_folder='templates')
 
 @app.route('/data')
 def data():
-    return flask.jsonify(get_pokemarkers())
+    if 'ignore' in flask.request.args:
+        ignore = {int(x) for x in flask.request.args['ignore'].split(',')}
+    else:
+        ignore = set()
+    return flask.jsonify(get_pokemarkers(ignore))
 
 
 @app.route('/')
@@ -52,10 +53,13 @@ def fullmap():
     return flask.render_template(
         'map.html',
         key=GOOGLEMAPS_KEY,
-        auto_refresh=auto_refresh_interval,
-        origin_lat=origin_lat,
-        origin_lng=origin_lng,
-        zoom=zoom,
+        js_globals={
+            'auto_refresh': auto_refresh_interval * 1000,
+            'origin_lat': origin_lat,
+            'origin_lng': origin_lng,
+            'pokemon': pokemon_names,
+            'zoom': zoom,
+        },
         # Mobile browsers cache forever, let's at least give them a hint about
         # the timestamp
         css_timestamp=os.stat('static/css/main.css').st_mtime,
@@ -99,7 +103,7 @@ class Pokemon(collections.namedtuple(
         }
 
 
-def get_pokemarkers():
+def get_pokemarkers(ignore):
     current_time_ms = time.time() * 1000
     with connect_db() as db:
         data = DATA.select_non_expired(db, current_time_ms)
@@ -108,7 +112,7 @@ def get_pokemarkers():
 
     return [
         pokemon.to_marker() for pokemon in all_data
-        if pokemon.name.lower() not in ignore
+        if pokemon.number not in ignore
     ]
 
 

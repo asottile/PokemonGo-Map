@@ -1,35 +1,79 @@
 (function () {
-    var map, markerCache = {}, body = $('body');
+    var map, markerCache = {};
 
-    function zeroPad(n) {
-        return ('0' + n).slice(-2);
-    }
+    // Label countdown
+    (function () {
+        function zeroPad(n) {
+            return ('0' + n).slice(-2);
+        }
 
-    function setLabelTime() {
-        $('.label-countdown').each(function (index, element) {
-            var difference, minutes, seconds, timestring,
-                disappearsAt = new Date(parseInt(element.getAttribute('disappears-at')));
+        function setLabelTime() {
+            $('.label-countdown').each(function (index, element) {
+                var difference, minutes, seconds, timestring,
+                    disappearsAt = new Date(parseInt(
+                        element.getAttribute('disappears-at')
+                    ));
 
-            difference = disappearsAt - new Date();
-            if (difference < 0) {
-                timestring = '(expired)';
-            } else {
-                minutes = Math.floor(difference / (60 * 1000));
-                difference %= (60 * 1000);
-                seconds = Math.floor(difference / 1000);
+                difference = disappearsAt - new Date();
+                if (difference < 0) {
+                    timestring = '(expired)';
+                } else {
+                    minutes = Math.floor(difference / (60 * 1000));
+                    difference %= (60 * 1000);
+                    seconds = Math.floor(difference / 1000);
 
-                timestring = [
-                    '(', zeroPad(minutes), 'm', zeroPad(seconds), 's', ')'
-                ].join('');
-            }
+                    timestring = [
+                        '(', zeroPad(minutes), 'm', zeroPad(seconds), 's', ')'
+                    ].join('');
+                }
 
-            $(element).text(timestring)
-        });
-    };
+                $(element).text(timestring)
+            });
+        };
+
+        window.setInterval(setLabelTime, 1000);
+    })();
+
+    // Controls what pokemon are displayed
+    var Displayed = (function () {
+        var hiddenPokemon = JSON.parse(
+            localStorage.getItem('hiddenPokemon') || '[]'
+        );
+
+        function saveState() {
+            localStorage.setItem(
+                'hiddenPokemon', JSON.stringify(hiddenPokemon)
+            );
+        }
+
+        function getHiddenPokemon() {
+            return hiddenPokemon;
+        }
+
+        function isDisplayed(pokemonNumber) {
+            return hiddenPokemon.indexOf(pokemonNumber) === -1;
+        }
+
+        function addPokemon(pokemonNumber) {
+            hiddenPokemon.splice(hiddenPokemon.indexOf(pokemonNumber), 1);
+        }
+
+        function removePokemon(pokemonNumber) {
+            hiddenPokemon.push(pokemonNumber);
+            saveState();
+        }
+
+        return {
+            getHiddenPokemon: getHiddenPokemon,
+            isDisplayed: isDisplayed,
+            addPokemon: addPokemon,
+            removePokemon: removePokemon
+        };
+    })();
 
     function createMap() {
         var center = new google.maps.LatLng(
-            window.POGO.originLat, window.POGO.originLng
+            window.POGO.origin_lat, window.POGO.origin_lng
         );
         map = new google.maps.Map(
             document.getElementById('fullmap'), {
@@ -62,14 +106,15 @@
         var marker = new google.maps.Marker({
             position: new google.maps.LatLng(item.lat, item.lng),
             map: map,
-            icon: item.icon,
+            icon: item.icon
         });
         markerCache[item.key] = marker;
 
         var infoWindow = new google.maps.InfoWindow({content: item.infobox});
         marker.addListener('click', infoWindow.open.bind(infoWindow, map, marker));
 
-        window.setTimeout(
+        marker.pokemon = item.pokemon;
+        marker.interval = window.setTimeout(
             function () {
                 markerCache[item.key].setMap(null);
                 delete markerCache[item.key];
@@ -79,43 +124,150 @@
     }
 
     function updateMap() {
-        $.get('/data', function(data) {
+        var displayed = Displayed.getHiddenPokemon(),
+            query = displayed.length ? '?ignore=' + displayed.join(',') : '';
+
+        $.get('/data' + query, function(data) {
             for (var i = 0; i < data.length; i += 1) {
                 addMarker(data[i]);
             }
         });
     }
 
-    function showModal(modalElement, e) {
-        body.addClass('modal-visible');
-        modalElement.removeClass('hidden');
-        e.stopPropagation();
-    }
+    // Modal functionality
+    var Modal = (function () {
+        var body = $('body');
 
-    function maybeHideModals(e) {
-        if ($(e.target).is('.modal-visible')) {
-            body.removeClass('modal-visible');
-            $('.modal').addClass('hidden');
+        function maybeHideModals(e) {
+            if ($(e.target).is('.modal-visible')) {
+                body.removeClass('modal-visible');
+                $('.modal').addClass('hidden');
+            }
         }
-    }
 
-    function handleKeypress(e) {
-        if (e.which === 27) {
-            maybeHideModals(e);
+        function handleKeypress(e) {
+            if (e.which === 27) {
+                maybeHideModals(e);
+            }
         }
-    }
+
+        function showModal(modalElement, e) {
+            body.addClass('modal-visible');
+            modalElement.removeClass('hidden');
+            e.stopPropagation();
+        }
+
+        body.on('click', maybeHideModals);
+        $(window).on('keyup', handleKeypress);
+
+        return {showModal: showModal};
+    })();
+
+    // Settings modal
+    (function () {
+        var num,
+            settingsModal = $('.modal-settings'),
+            search = settingsModal.find('.search'),
+            results = settingsModal.find('.search-results'),
+            POKEMON_TEMPLATE = [
+                '<tr>',
+                '<td><img src="static/icons/NUMBER.png"></td>',
+                '<td>#NUMBER</td>',
+                '<td>NAME</td>',
+                '<td><label>',
+                '<input ',
+                '    type="checkbox" ',
+                '    class="displayed" ',
+                '    value="NUMBER"',
+                '    CHECKED',
+                '> display</label></td>',
+                '</tr>'
+            ].join('');
+
+        function getPokemonFromText(text) {
+            var i, name, ret = [], asNumber = parseInt(text, 10);
+
+            if (1 <= asNumber && asNumber <= 151) {
+                ret.push(asNumber);
+            } else if (text) {
+                for (i = 0; i < window.POGO.pokemon.length; i += 1) {
+                    name = window.POGO.pokemon[i].toLowerCase();
+                    if (name.indexOf(text) === 0) {
+                        ret.push(i);
+                    }
+                }
+            }
+            return ret;
+        }
+
+        function toPokemonInput(number) {
+            var checked = Displayed.isDisplayed(number) ? 'checked' : '';
+            return (
+                POKEMON_TEMPLATE
+                    .replace(/NUMBER/g, number.toString(10))
+                    .replace(/NAME/g, window.POGO.pokemon[number])
+                    .replace(/CHECKED/g, checked)
+            );
+        }
+
+        function filterPokemon() {
+            var i, parts = [], toDisplay = getPokemonFromText(
+                search.val().trim().toLowerCase()
+            );
+            if (!toDisplay.length) {
+                results.text('No results.');
+            } else {
+                parts.push('<table>');
+                for (i = 0; i < toDisplay.length; i += 1) {
+                    parts.push(toPokemonInput(toDisplay[i]));
+                }
+                parts.push('</table>');
+                results.html(parts.join(''));
+            }
+        }
+
+        function changeDisplayed(e) {
+            var k, marker,
+                target = $(e.target),
+                number = parseInt(target.val(), 10);
+
+            if (target.is(':checked')) {
+                Displayed.addPokemon(number);
+                updateMap();
+            } else {
+                Displayed.removePokemon(number);
+                // Remove all displayed markers of that pokemon
+                Object.keys(markerCache).forEach(function (k) {
+                    marker = markerCache[k];
+                    if (marker.pokemon === number) {
+                        window.clearInterval(marker.interval);
+                        marker.setMap(null);
+                        delete markerCache[k];
+                    }
+                });
+            }
+        }
+
+        search.val('');
+        search.on('keyup', filterPokemon);
+
+        settingsModal.delegate('.displayed', 'change', changeDisplayed);
+
+        $('.settings').on('click', Modal.showModal.bind(null, settingsModal));
+    })();
+
+    // About modal
+    (function () {
+        var aboutModal = $('.modal-about');
+        $('.about').on('click', Modal.showModal.bind(null, aboutModal));
+    })();
 
     window.initMap = function () {
         createMap();
         updateMap();
         $('.refresh').on('click', updateMap);
-        $('.about').on('click', showModal.bind(null, $('.modal-about')));
-        body.on('click', maybeHideModals);
-        $(window).on('keyup', handleKeypress);
-        if (window.POGO.autoRefresh) {
-            window.setInterval(updateMap, window.POGO.autoRefresh);
+        if (window.POGO.auto_refresh) {
+            window.setInterval(updateMap, window.POGO.auto_refresh);
         }
     }
-
-    window.setInterval(setLabelTime, 1000);
 })();
