@@ -59,8 +59,8 @@ html, body {
     left: 0;
     right: 0;
     top: 5em;
-    width: 75%;
     max-height: 75%;
+    width: 75%;
 }
 
 body.modal-visible:after {
@@ -80,8 +80,12 @@ h3 {
     border-bottom: 2px solid #000;
 }
 
+.modal-settings {
+    bottom: 5em;
+}
+
 .search-results {
-    min-height: 4em;
+    height: calc(100% - 6em);
     margin-top: 1em;
     overflow-y: auto;
 }
