@@ -58,7 +58,7 @@ html, body {
     z-index: 9999;
     left: 0;
     right: 0;
-    top: 5em;
+    top: 4em;
     max-height: 75%;
     width: 75%;
 }
@@ -81,11 +81,11 @@ h3 {
 }
 
 .modal-settings {
-    bottom: 5em;
+    bottom: 1em;
 }
 
 .search-results {
-    height: calc(100% - 6em);
+    height: calc(100% - 5.5em);
     margin-top: 1em;
     overflow-y: auto;
 }
