@@ -94,8 +94,26 @@
         });
     }
 
+    var INFOBOX_TEMPLATE = [
+        '<div><b>NAME</b></div>',
+        '<div>Disappears at - TIME ',
+        '<span class="label-countdown" disappears-at="EXPIRES_AT_MS"></span>',
+        '</div>'
+    ].join('');
+
+    function makeInfoBox(item) {
+        var date = new Date(item.disappear_time),
+            formattedDate = date.getHours() + ':' + date.getMinutes() + ':' + date.getSeconds();
+        return (
+            INFOBOX_TEMPLATE
+                .replace(/NAME/g, window.POGO.pokemon[item.pokemon])
+                .replace(/TIME/g, formattedDate)
+                .replace(/EXPIRES_AT_MS/g, item.disappear_time)
+        );
+    }
+
     function addMarker(item) {
-        if (item.key in markerCache) {
+        if (item.key in markerCache || !Displayed.isDisplayed(item.pokemon)) {
             return;
         }
 
@@ -106,11 +124,13 @@
         var marker = new google.maps.Marker({
             position: new google.maps.LatLng(item.lat, item.lng),
             map: map,
-            icon: item.icon
+            icon: '/static/icons/' + item.pokemon + '.png'
         });
         markerCache[item.key] = marker;
 
-        var infoWindow = new google.maps.InfoWindow({content: item.infobox});
+        var infoWindow = new google.maps.InfoWindow({
+            content: makeInfoBox(item)
+        });
         marker.addListener('click', infoWindow.open.bind(infoWindow, map, marker));
 
         marker.pokemon = item.pokemon;
@@ -124,10 +144,7 @@
     }
 
     function updateMap() {
-        var displayed = Displayed.getHiddenPokemon(),
-            query = displayed.length ? '?ignore=' + displayed.join(',') : '';
-
-        $.get('/data' + query, function(data) {
+        $.get('/data', function(data) {
             for (var i = 0; i < data.length; i += 1) {
                 addMarker(data[i]);
             }

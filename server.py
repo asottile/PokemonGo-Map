@@ -37,11 +37,7 @@ app = flask.Flask(__name__, template_folder='templates')
 
 @app.route('/data')
 def data():
-    if 'ignore' in flask.request.args:
-        ignore = {int(x) for x in flask.request.args['ignore'].split(',')}
-    else:
-        ignore = set()
-    return flask.jsonify(get_pokemarkers(ignore))
+    return flask.jsonify(get_pokemarkers())
 
 
 @app.route('/')
@@ -67,14 +63,6 @@ def fullmap():
     )
 
 
-LABEL_TEMPLATE = (
-    '<div><b>{pokemon.name}</b></div>'
-    '<div>Disappears at - {pokemon.expires_at_formatted} '
-    '<span class="label-countdown" disappears-at="{pokemon.expires_at_ms}">'
-    '</span></div>'
-)
-
-
 class Pokemon(collections.namedtuple(
         'Pokemon', ('spawn_id', 'number', 'lat', 'lng', 'expires_at_ms'),
 )):
@@ -92,28 +80,22 @@ class Pokemon(collections.namedtuple(
 
     def to_marker(self):
         return {
-            'type': 'pokemon',
             'key': '{}@{}'.format(self.spawn_id, self.expires_at_ms),
             'pokemon': self.number,
             'disappear_time': self.expires_at_ms,
-            'icon': 'static/icons/{}.png'.format(self.number),
             'lat': self.lat,
             'lng': self.lng,
-            'infobox': LABEL_TEMPLATE.format(pokemon=self),
         }
 
 
-def get_pokemarkers(ignore):
+def get_pokemarkers():
     current_time_ms = time.time() * 1000
     with connect_db() as db:
         data = DATA.select_non_expired(db, current_time_ms)
         lure_data = LURE_DATA.select_non_expired(db, current_time_ms)
         all_data = [Pokemon(*row) for row in data + lure_data]
 
-    return [
-        pokemon.to_marker() for pokemon in all_data
-        if pokemon.number not in ignore
-    ]
+    return [pokemon.to_marker() for pokemon in all_data]
 
 
 if __name__ == '__main__':
