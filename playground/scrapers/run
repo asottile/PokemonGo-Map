@@ -1,0 +1,81 @@
+#!/usr/bin/env python
+import json
+import os
+import shutil
+import signal
+import subprocess
+import stat
+import time
+
+
+CONFIG = '../../config.json'
+
+
+RUN_TMPL = '''\
+#!/usr/bin/env bash
+exec cd "$(readlink -f "$PWD/../../../../")" dumb-init python -u scrape.py \\
+--user {username}
+'''
+
+
+def no_pgctl_environ():
+    for k in tuple(os.environ):
+        if k.startswith('PGCTL_'):
+            del os.environ[k]
+
+
+
+def remove_old_scrapers():
+    subprocess.check_call(('pgctl', 'stop'))
+    for sub_scraper in os.listdir('playground'):
+        sub_scraper_dir = os.path.join('playground', sub_scraper)
+        if os.path.isdir(sub_scraper_dir):
+            shutil.rmtree(sub_scraper_dir)
+
+
+def _template_scraper(username):
+    pgdir = os.path.join('playground', 'scraper_' + username)
+    runfilename = os.path.join(pgdir, 'run')
+    os.makedirs(pgdir)
+    with open(runfilename, 'w') as runfile:
+        runfile.write(RUN_TMPL.format(username=username))
+    os.chmod(runfilename, os.stat(runfilename).st_mode | stat.S_IXUSR)
+
+
+def build_playground_dirs():
+    with open(CONFIG) as config_file:
+        config = json.load(config_file)
+    for username in config['scrapers']:
+        _template_scraper(username)
+
+
+stopping = False
+
+
+def cleanup(*_):
+    global stopping
+    if not stopping:
+        stopping = True
+        remove_old_scrapers()
+        raise SystemExit()
+
+
+def main():
+    # XXX: workaround for Yelp/pgctl#139
+    no_pgctl_environ()
+
+    signal.signal(signal.SIGTERM, cleanup)
+
+    config_mtime = None
+    while True:
+        new_stat = os.stat(CONFIG)
+        if new_stat.st_mtime != config_mtime:
+            remove_old_scrapers()
+            build_playground_dirs()
+            subprocess.check_call(('pgctl', 'start'))
+            config_mtime = new_stat.st_mtime
+        time.sleep(1)
+
+
+if __name__ == '__main__':
+    exit(main())

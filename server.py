@@ -13,13 +13,13 @@ from _db_logic import LURE_DATA
 
 with open('config.json') as config:
     config = json.load(config)
-    origin_lat = config['latitude']
-    origin_lng = config['longitude']
     GOOGLEMAPS_KEY = config['gmaps_key']
+    origin_lat = config['map_latitude']
+    origin_lng = config['map_longitude']
+    zoom = config['map_zoom']
     host = config['host']
     port = config['port']
     auto_refresh = config['auto_refresh']
-    zoom = config['zoom']
 
 with open('pokemon.en.json') as pokemon_names_file:
     pokemon_names = json.load(pokemon_names_file)
