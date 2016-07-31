@@ -72,7 +72,7 @@
     })();
 
     function createMap() {
-        var center = new google.maps.LatLng(
+        var i, center = new google.maps.LatLng(
             window.POGO.origin_lat, window.POGO.origin_lng
         );
         map = new google.maps.Map(
@@ -88,6 +88,19 @@
                 fullscreenControl: true
         });
         new google.maps.Marker({position: center, map: map});
+
+        for (i = 0; i < window.POGO.areas.length; i += 1) {
+            new google.maps.Circle({
+                map: map,
+                radius: window.POGO.radius,
+                center: new google.maps.LatLng(
+                    window.POGO.areas[i]['latitude'],
+                    window.POGO.areas[i]['longitude']
+                ),
+                strokeWeight: 1,
+                fillOpacity: .2
+            });
+        }
     }
 
     var INFOBOX_TEMPLATE = [

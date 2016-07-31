@@ -22,6 +22,8 @@ from _db_logic import DATA
 from _db_logic import LURE_DATA
 
 
+RADIUS = 70
+
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 API_URL = 'https://pgorelease.nianticlabs.com/plfe/rpc'
@@ -363,7 +365,7 @@ def generate_location_steps3(num_steps):
 
 
 def generate_location_steps4(loc, num_steps):
-    meters_delta = 150
+    meters_delta = RADIUS * math.sqrt(3) - 1
     # Conversion of radius from meters to deg
     lat_delta = meters_delta / M_PER_DEG
     lng_delta = meters_delta / M_PER_DEG / math.cos(loc.lat * 0.0174533)

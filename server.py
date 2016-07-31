@@ -6,6 +6,7 @@ from datetime import datetime
 
 import flask
 
+import scrape
 from _db_logic import connect_db
 from _db_logic import DATA
 from _db_logic import LURE_DATA
@@ -46,14 +47,30 @@ def fullmap():
         auto_refresh_interval = int(flask.request.args['refresh'])
     else:
         auto_refresh_interval = auto_refresh
+
+    if 'areas' in flask.request.args:
+        scrapers = json.load(open('config.json'))['scrapers']
+        areas = [
+            {'latitude': lat, 'longitude': lng, 'scraper': scraper_name}
+            for scraper_name, scraper in scrapers.items()
+            for lat, lng in scrape.generate_location_steps4(
+                scrape.Location(scraper['latitude'], scraper['longitude']),
+                scraper['steplimit'],
+            )
+        ]
+    else:
+        areas = []
+
     return flask.render_template(
         'map.html',
         key=GOOGLEMAPS_KEY,
         js_globals={
+            'areas': areas,
             'auto_refresh': auto_refresh_interval * 1000,
             'origin_lat': origin_lat,
             'origin_lng': origin_lng,
             'pokemon': pokemon_names,
+            'radius': scrape.RADIUS,
             'zoom': zoom,
         },
         # Mobile browsers cache forever, let's at least give them a hint about
