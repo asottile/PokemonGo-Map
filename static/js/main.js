@@ -71,8 +71,21 @@
         };
     })();
 
+    function addCircle(area) {
+        var circle = new google.maps.Circle({
+            map: map,
+            radius: window.POGO.radius,
+            center: new google.maps.LatLng(area.latitude, area.longitude),
+            strokeWeight: 1,
+            fillOpacity: .2
+        });
+        circle.addListener('click', function () {
+            alert(area.latitude + ', ' + area.longitude);
+        });
+    }
+
     function createMap() {
-        var i, area, center = new google.maps.LatLng(
+        var i, center = new google.maps.LatLng(
             window.POGO.origin_lat, window.POGO.origin_lng
         );
         map = new google.maps.Map(
@@ -90,14 +103,7 @@
         new google.maps.Marker({position: center, map: map});
 
         for (i = 0; i < window.POGO.areas.length; i += 1) {
-            area = window.POGO.areas[i];
-            new google.maps.Circle({
-                map: map,
-                radius: window.POGO.radius,
-                center: new google.maps.LatLng(area.latitude, area.longitude),
-                strokeWeight: 1,
-                fillOpacity: .2
-            });
+            addCircle(window.POGO.areas[i]);
         }
     }
 
