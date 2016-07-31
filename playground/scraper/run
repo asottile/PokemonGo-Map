@@ -1,2 +1,0 @@
-#!/usr/bin/env bash
-exec cd "$(readlink -f "$PWD/../../")" dumb-init python -u scrape.py

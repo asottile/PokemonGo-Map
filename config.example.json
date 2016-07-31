@@ -1,12 +1,17 @@
 {
-    "username": "username here",
-    "password": "password here",
-    "latitude": 37.5678222,
-    "longitude": -122.3259203,
-    "steplimit": 5,
     "gmaps_key": "....",
+    "map_latitude": 37.5678222,
+    "map_longitude": -122.3259203,
+    "map_zoom": 15,
     "host": "0.0.0.0",
     "port": 5000,
     "auto_refresh": 10,
-    "zoom": 15
+    "scrapers": {
+        "USERNAME HERE": {
+            "password": "PASSWORD HERE",
+            "latitude": 37.5678222,
+            "longitude": -122.3259203,
+            "steplimit": 5
+        }
+    }
 }

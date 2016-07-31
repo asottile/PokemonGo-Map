@@ -1,3 +1,4 @@
+import argparse
 import collections
 import math
 import re
@@ -62,10 +63,7 @@ class Location(collections.namedtuple('Location', ('lat', 'lng'))):
 
 with open('config.json') as config:
     config = json.load(config)
-    global_password = config['password']
-    global_username = config['username']
-    origin = Location(config['latitude'], config['longitude'])
-    steplimit = config['steplimit']
+    scrapers = config['scrapers']
 
 
 def encode(cellid):
@@ -287,8 +285,8 @@ def get_token(username, password):
     return login_ptc(username, password)
 
 
-def login(origin):
-    access_token = get_token(global_username, global_password)
+def login(username, password, origin):
+    access_token = get_token(username, password)
     if access_token is None:
         raise Exception('[-] Wrong username/password')
 
@@ -377,7 +375,20 @@ M_PER_DEG = 111111.
 
 
 def main():
-    api_endpoint, access_token, profile_response = login(origin)
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--username', choices=tuple(sorted(scrapers)), required=True,
+    )
+    args = parser.parse_args()
+
+    scraper = scrapers[args.username]
+    origin = Location(scraper['latitude'], scraper['longitude'])
+    password = scraper['password']
+    steplimit = scraper['steplimit']
+
+    api_endpoint, access_token, profile_response = login(
+        args.username, password, origin,
+    )
 
     with connect_db() as db:
         DATA.ensure_table_exists(db)
